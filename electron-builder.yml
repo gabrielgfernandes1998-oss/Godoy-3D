@@ -1,0 +1,20 @@
+appId: br.com.godoy.editor3d
+productName: Godoy 3D Editor
+copyright: Copyright © 2026 Godoy 3D
+asar: true
+directories:
+  output: release
+files:
+  - dist/**/*
+  - desktop/main.cjs
+  - package.json
+win:
+  target:
+    - target: portable
+      arch: [x64]
+  artifactName: Godoy-3D-Editor-${version}-Windows-x64-Portable.${ext}
+  signAndEditExecutable: false
+portable:
+  requestExecutionLevel: user
+  unpackDirName: godoy-3d-editor
+npmRebuild: false

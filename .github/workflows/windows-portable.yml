@@ -1,0 +1,46 @@
+name: Versão portátil Windows
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run portable:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Testar aplicativo Windows compilado
+        run: npm run test:desktop
+        env:
+          GODOY_DESKTOP_BINARY: release/win-unpacked/Godoy 3D Editor.exe
+      - name: Calcular SHA-256
+        shell: pwsh
+        run: |
+          Get-ChildItem release/*-Portable.exe | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Set-Content "release/SHA256SUMS.txt" -Encoding ascii
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Godoy-3D-Editor-Windows-x64-Portable
+          path: |
+            release/*-Portable.exe
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Publicar download
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME release/*-Portable.exe release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --title "Godoy 3D Editor $env:GITHUB_REF_NAME — Windows portátil" --notes "Windows 10/11 64 bits. Baixe e abra o arquivo Portable.exe; não precisa instalar Node.js. A primeira abertura extrai os componentes no diretório temporário. Projetos devem ser salvos pelo botão Salvar projeto. Executável sem assinatura digital."

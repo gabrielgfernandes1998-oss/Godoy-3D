@@ -1,6 +1,6 @@
 {
   "name": "godoy-3d-editor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,11 @@
     "build": "tsc && vite build",
     "test": "vitest run",
     "preview": "vite preview --host 0.0.0.0",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "desktop": "npm run build && electron .",
+    "portable:win": "npm run build && electron-builder --win portable --x64 --publish never",
+    "portable:win:zip": "npm run build && electron-builder --win zip --x64 --publish never",
+    "test:desktop": "node scripts/test-desktop.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",
@@ -24,9 +28,14 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@types/three": "^0.180.0",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
     "prettier": "^3.9.10",
     "typescript": "^5.9.2",
     "vite": "^7.1.7",
     "vitest": "^3.2.4"
-  }
+  },
+  "description": "Editor 3D simples em português do Brasil, com edição de malhas e UVs.",
+  "author": "Godoy 3D",
+  "main": "desktop/main.cjs"
 }

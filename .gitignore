@@ -2,3 +2,5 @@ node_modules/
 dist/
 .playwright/
 test-results/
+release/
+Godoy3D-dados/

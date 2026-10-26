@@ -2,7 +2,26 @@
 
 Editor 3D local em português do Brasil, construído com React, TypeScript e Three.js. Arquivos são processados no navegador, sem upload para um servidor.
 
-## Executar
+## Windows portátil (sem instalação)
+
+A versão portátil é para **Windows 10/11 de 64 bits (x64)**. Baixe o arquivo `Godoy-3D-Editor-0.1.1-Windows-x64-Portable.exe` na [página de versões](https://github.com/gabrielgfernandes1998-oss/Godoy-3D/releases), coloque em uma pasta com permissão de escrita e abra com duplo clique.
+
+Não exige Node.js, servidor ou conexão com a internet. Na primeira abertura, o executável extrai seus componentes na pasta temporária. As preferências ficam na pasta `Godoy3D-dados`, ao lado do executável (se essa pasta não puder ser criada, o Electron usa o diretório padrão do Windows). Os projetos precisam ser baixados pelo botão **Salvar projeto**, não ficam salvos automaticamente nas preferências.
+
+O aplicativo ainda não tem assinatura digital; o Windows pode mostrar um aviso de aplicativo desconhecido. O arquivo `SHA256SUMS.txt` da versão permite conferir a integridade do download. Requer suporte a WebGL e drivers gráficos compatíveis; não é uma versão para Windows 7/8 ou ARM64.
+
+### Compilar a versão portátil
+
+```sh
+npm ci
+npm run portable:win
+```
+
+O `.exe` será gerado em `release/`. Para gerar uma pasta compactada com executável e componentes, use `npm run portable:win:zip`. A distribuição inclui o Electron; Node.js é necessário apenas para desenvolvimento e compilação.
+
+O workflow `.github/workflows/windows-portable.yml` compila e testa o aplicativo em Windows. Tags `v*` publicam o executável e seu SHA-256 em GitHub Releases. O teste desktop exige uma sessão gráfica e o caminho do aplicativo compilado na variável `GODOY_DESKTOP_BINARY`; execute com `npm run test:desktop`.
+
+## Executar em desenvolvimento
 
 Requer Node.js 22.12+ (validado com Node 24) e npm.
 
