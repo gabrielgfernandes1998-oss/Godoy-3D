@@ -4,7 +4,7 @@ Editor 3D local em português do Brasil, construído com React, TypeScript e Thr
 
 ## Windows portátil (sem instalação)
 
-A versão portátil é para **Windows 10/11 de 64 bits (x64)**. Baixe o arquivo `Godoy-3D-Editor-0.1.1-Windows-x64-Portable.exe` na [página de versões](https://github.com/gabrielgfernandes1998-oss/Godoy-3D/releases), coloque em uma pasta com permissão de escrita e abra com duplo clique.
+A versão portátil é para **Windows 10/11 de 64 bits (x64)**. Baixe o arquivo `Godoy-3D-Editor-0.1.2-Windows-x64-Portable.exe` na [página de versões](https://github.com/gabrielgfernandes1998-oss/Godoy-3D/releases), coloque em uma pasta com permissão de escrita e abra com duplo clique.
 
 Não exige Node.js, servidor ou conexão com a internet. Na primeira abertura, o executável extrai seus componentes na pasta temporária. As preferências ficam na pasta `Godoy3D-dados`, ao lado do executável (se essa pasta não puder ser criada, o Electron usa o diretório padrão do Windows). Os projetos precisam ser baixados pelo botão **Salvar projeto**, não ficam salvos automaticamente nas preferências.
 
@@ -67,3 +67,9 @@ Selecione uma malha, entre em Faces ou Vértices, e abra Editar UV. Clique no mo
 - As alterações são em memória. A grade usa unidades abstratas; escolha a escala de importação explicitamente. STL e OBJ não oferecem uma unidade universal confiável.
 
 A versão atual é uma primeira implementação funcional, não cobre toda a especificação de recursos avançados.
+
+## Correção 0.1.2 — modelos na mesma cena
+
+A importação agora enquadra todos os modelos visíveis, sem alterar suas posições, escalas ou geometrias. O enquadramento considera a proporção da janela, modelos pequenos/grandes e a distância de recorte da câmera. Use **Mostrar toda a cena** para recuperar a visão geral, ou **Enquadrar seleção** para aproximar somente o objeto escolhido.
+
+Ao selecionar outro objeto, o editor retorna ao modo Objeto e à seleção por clique, evitando que os modos Faces/Laço impeçam o posicionamento da peça. Quando modelos têm tamanhos muito diferentes, o editor avisa; **Ajustar tamanho à cena** aplica uma escala explícita baseada no maior dos outros objetos visíveis, sem mudar sua posição e com possibilidade de desfazer. Objetos muito pequenos ou muito distantes podem continuar difíceis de distinguir: a câmera não pode corrigir diferenças reais de escala ou posição sem uma edição explícita.

@@ -41,13 +41,11 @@ test("boina e insígnia: unir, deformar, apagar, desfazer e reabrir GLB", async 
   download = await save;
   const glbPath = (await download.path())!;
   await page.getByRole("button", { name: "Importar", exact: true }).click();
-  await page
-    .locator("input[type=file][multiple]")
-    .setInputFiles({
-      name: "resultado.glb",
-      mimeType: "model/gltf-binary",
-      buffer: await readFile(glbPath),
-    });
+  await page.locator("input[type=file][multiple]").setInputFiles({
+    name: "resultado.glb",
+    mimeType: "model/gltf-binary",
+    buffer: await readFile(glbPath),
+  });
   await expect(page.getByLabel("Nome do objeto")).toHaveValue("resultado", {
     timeout: 20000,
   });
@@ -73,15 +71,13 @@ test("boina e insígnia: unir, deformar, apagar, desfazer e reabrir GLB", async 
 test("OBJ real, UV e projeto persistente", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByLabel("Nome do objeto")).toHaveValue("Boina");
-  await page
-    .locator("input[type=file][multiple]")
-    .setInputFiles({
-      name: "triangulo.obj",
-      mimeType: "text/plain",
-      buffer: Buffer.from(
-        "o Triangulo\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 0 1\nf 1/1 2/2 3/3\n",
-      ),
-    });
+  await page.locator("input[type=file][multiple]").setInputFiles({
+    name: "triangulo.obj",
+    mimeType: "text/plain",
+    buffer: Buffer.from(
+      "o Triangulo\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 0 1\nf 1/1 2/2 3/3\n",
+    ),
+  });
   await expect(page.getByLabel("Nome do objeto")).toHaveValue("triangulo");
   // OBJ hierarchy is preserved. An imported group with one mesh supports part editing.
   await page.getByRole("button", { name: "Faces", exact: true }).click();
@@ -120,13 +116,11 @@ test("OBJ real, UV e projeto persistente", async ({ page }) => {
 test("formatos não implementados geram erro claro", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByLabel("Nome do objeto")).toHaveValue("Boina");
-  await page
-    .locator("input[type=file][multiple]")
-    .setInputFiles({
-      name: "teste.blend",
-      mimeType: "application/octet-stream",
-      buffer: Buffer.from("BLENDER"),
-    });
+  await page.locator("input[type=file][multiple]").setInputFiles({
+    name: "teste.blend",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("BLENDER"),
+  });
   await expect(page.getByRole("status")).toContainText(
     "BLEND requer um serviço separado com Blender",
   );
@@ -147,13 +141,11 @@ test("texturas, reabertura de projeto e exportações OBJ/STL", async ({
     ctx.fillRect(0, 0, 8, 8);
     return c.toDataURL("image/png").split(",")[1];
   });
-  await page
-    .locator('input[accept="image/png,image/jpeg"]')
-    .setInputFiles({
-      name: "textura.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(image, "base64"),
-    });
+  await page.locator('input[accept="image/png,image/jpeg"]').setInputFiles({
+    name: "textura.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(image, "base64"),
+  });
   await expect(
     page.getByText("Textura carregada", { exact: true }),
   ).toBeVisible();
@@ -166,13 +158,11 @@ test("texturas, reabertura de projeto e exportações OBJ/STL", async ({
   const json = JSON.parse(project.toString());
   expect(json.scene.images[0].url).toMatch(/^data:image\/png/);
   await page.getByRole("button", { name: "Importar", exact: true }).click();
-  await page
-    .locator('input[accept=".godoy"]')
-    .setInputFiles({
-      name: "restaurado.godoy",
-      mimeType: "application/json",
-      buffer: project,
-    });
+  await page.locator('input[accept=".godoy"]').setInputFiles({
+    name: "restaurado.godoy",
+    mimeType: "application/json",
+    buffer: project,
+  });
   await expect(page.getByLabel("Nome do objeto")).toHaveValue("restaurado");
   await page.getByRole("button", { name: /^Exportar/ }).click();
   await page.getByRole("button", { name: /^OBJ \+ MTL/ }).click();
@@ -196,4 +186,106 @@ test("texturas, reabertura de projeto e exportações OBJ/STL", async ({
   const bytes = await readFile((await file.path())!);
   expect(bytes.readUInt32LE(80)).toBeGreaterThan(2000);
   expect(bytes.length).toBe(84 + 50 * bytes.readUInt32LE(80));
+});
+
+test("importar mantém a cena e restaura a seleção de objetos", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByLabel("Nome do objeto")).toHaveValue("Boina");
+  await page.evaluate(async () => {
+    const { Editor } = await import("/src/editor.ts");
+    const original = Editor.prototype.frameScene;
+    Editor.prototype.frameScene = function () {
+      original.call(this);
+      const corners: number[][] = [];
+      this.root.updateWorldMatrix(true, true);
+      this.camera.updateMatrixWorld();
+      this.root.traverseVisible((object: any) => {
+        if (!object.isMesh || !object.geometry.boundingBox) return;
+        const box = object.geometry.boundingBox;
+        for (const x of [box.min.x, box.max.x])
+          for (const y of [box.min.y, box.max.y])
+            for (const z of [box.min.z, box.max.z]) {
+              const point = object.position
+                .clone()
+                .set(x, y, z)
+                .applyMatrix4(object.matrixWorld)
+                .project(this.camera);
+              corners.push(point.toArray());
+            }
+      });
+      (window as any).__sceneCorners = corners;
+    };
+  });
+  await page.getByRole("button", { name: "Faces", exact: true }).click();
+  await page.getByRole("button", { name: "Laço", exact: true }).click();
+  const obj = "o Grande\nv 10000 0 0\nv 10000 1000 0\nv 11000 0 0\nf 1 2 3\n";
+  await page.locator("input[type=file][multiple]").setInputFiles({
+    name: "grande.obj",
+    mimeType: "text/plain",
+    buffer: Buffer.from(obj),
+  });
+  await expect(page.getByLabel("Nome do objeto")).toHaveValue("grande");
+  const projectedCorners = await page.evaluate(
+    () => (window as any).__sceneCorners as number[][],
+  );
+  expect(projectedCorners.length).toBeGreaterThanOrEqual(24);
+  for (const corner of projectedCorners)
+    for (const coordinate of corner)
+      expect(Math.abs(coordinate)).toBeLessThan(1);
+  await expect(
+    page.getByRole("button", { name: "Objeto", exact: true }),
+  ).toHaveClass(/active/);
+  await expect(
+    page.getByRole("button", { name: "Clique", exact: true }),
+  ).toHaveClass(/active/);
+  await expect(page.getByRole("status")).toContainText(
+    "tamanhos muito diferentes",
+  );
+  await expect(
+    page.getByLabel("Selecionar Boina", { exact: true }),
+  ).not.toBeChecked();
+  await page
+    .getByRole("button", { name: "Mostrar toda a cena", exact: true })
+    .last()
+    .click();
+  let pending = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Salvar projeto", exact: true })
+    .click();
+  let file = await pending;
+  const original = JSON.parse(await readFile((await file.path())!, "utf8"));
+  expect(original.scene.object.children).toHaveLength(3);
+  const imported = original.scene.object.children.find(
+    (o: any) => o.name === "grande",
+  );
+  expect(imported.matrix).toEqual([
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+  ]);
+  await page
+    .getByRole("button", { name: "Ajustar tamanho à cena", exact: true })
+    .click();
+  pending = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Salvar projeto", exact: true })
+    .click();
+  file = await pending;
+  const scaled = JSON.parse(await readFile((await file.path())!, "utf8"));
+  expect(
+    scaled.scene.object.children.find((o: any) => o.name === "grande")
+      .matrix[0],
+  ).toBeLessThan(0.01);
+  await page
+    .getByRole("button", { name: "Desfazer última edição", exact: true })
+    .click();
+  pending = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Salvar projeto", exact: true })
+    .click();
+  file = await pending;
+  const restored = JSON.parse(await readFile((await file.path())!, "utf8"));
+  expect(
+    restored.scene.object.children.find((o: any) => o.name === "grande").matrix,
+  ).toEqual(imported.matrix);
 });

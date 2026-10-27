@@ -43,4 +43,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME release/*-Portable.exe release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --title "Godoy 3D Editor $env:GITHUB_REF_NAME — Windows portátil" --notes "Windows 10/11 64 bits. Baixe e abra o arquivo Portable.exe; não precisa instalar Node.js. A primeira abertura extrai os componentes no diretório temporário. Projetos devem ser salvos pelo botão Salvar projeto. Executável sem assinatura digital."
+          gh release create $env:GITHUB_REF_NAME release/*-Portable.exe release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --title "Godoy 3D Editor $env:GITHUB_REF_NAME — Windows portátil" --notes-file RELEASE_NOTES.md

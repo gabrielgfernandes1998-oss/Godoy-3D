@@ -455,7 +455,7 @@ function App() {
           <Grid2X2 size={15} /> Editar UV
         </button>
         <span className="version">
-          ESPAÇO DE CRIAÇÃO <span>•</span> v0.1
+          ESPAÇO DE CRIAÇÃO <span>•</span> v0.1.2
         </span>
       </nav>
       <div className="toolbar">
@@ -822,8 +822,8 @@ function App() {
               <div className="viewport-tools">
                 <Button
                   icon={Focus}
-                  title="Enquadrar seleção"
-                  onClick={() => act((x) => x.frameSelection())}
+                  title="Mostrar toda a cena"
+                  onClick={() => act((x) => x.frameScene())}
                 />
                 <Button
                   icon={Grid2X2}
@@ -1098,6 +1098,21 @@ function App() {
                   onClick={() => act((x) => x.frameSelection())}
                 >
                   Enquadrar seleção
+                </Button>
+                <Button
+                  icon={Maximize}
+                  className="full-width"
+                  onClick={() => act((x) => x.frameScene())}
+                >
+                  Mostrar toda a cena
+                </Button>
+                <Button
+                  icon={Scaling}
+                  className="full-width"
+                  title="Ajustar explicitamente a escala ao tamanho dos outros objetos, sem mover a peça"
+                  onClick={() => act((x) => x.matchSceneScale())}
+                >
+                  Ajustar tamanho à cena
                 </Button>
               </section>
               {e?.tool === "pull" && (

@@ -1,3 +1,4 @@
+import { visibleBounds, fitCamera } from "./framing";
 import * as T from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
@@ -142,8 +143,8 @@ export class Editor {
     this.examples(false);
   }
   size() {
-    const w = this.host.clientWidth,
-      h = this.host.clientHeight;
+    const w = Math.max(this.host.clientWidth, 1),
+      h = Math.max(this.host.clientHeight, 1);
     if (this.camera instanceof T.PerspectiveCamera) this.camera.aspect = w / h;
     else {
       this.camera.left = ((-h / 100) * w) / h;
@@ -179,6 +180,7 @@ export class Editor {
     return result;
   }
   snapshot() {
+    this.root.updateMatrixWorld(true);
     return JSON.stringify(this.root.toJSON());
   }
   checkpoint() {
@@ -254,6 +256,12 @@ export class Editor {
   }
   select(objects: T.Object3D[]) {
     this.selected = objects;
+    this.mode = "object";
+    this.shape = "click";
+    if (this.tool === "pull") {
+      this.tool = "translate";
+      this.gizmo.setMode("translate");
+    }
     this.parts.clear();
     this.activeMesh = this.meshes().length === 1 ? this.meshes()[0] : null;
     this.updateGizmo();
@@ -846,26 +854,71 @@ export class Editor {
     this.select(copies);
   }
   frameSelection() {
-    const box = new T.Box3();
-    (this.selected.length ? this.selected : [this.root]).forEach((o) =>
-      box.union(new T.Box3().setFromObject(o)),
+    this.frameObjects(
+      this.selected.length ? this.selected : this.root.children,
     );
-    if (box.isEmpty()) return;
-    const center = box.getCenter(new T.Vector3()),
-      size = box.getSize(new T.Vector3()).length();
-    this.orbit.target.copy(center);
-    this.camera.position
-      .copy(center)
-      .add(
-        new T.Vector3(1, 0.65, 1.4)
-          .normalize()
-          .multiplyScalar(Math.max(size * 1.55, 1)),
+  }
+  frameScene() {
+    this.frameObjects(this.root.children);
+  }
+  private frameObjects(objects: T.Object3D[]) {
+    const result = fitCamera(
+      this.camera,
+      visibleBounds(objects),
+      this.camera.position.clone().sub(this.orbit.target),
+    );
+    if (!result) {
+      this.notify(
+        "Não há faces visíveis para enquadrar. Mostre os objetos ou desfaça a exclusão das faces.",
       );
-    if (this.camera instanceof T.OrthographicCamera) {
-      this.camera.zoom = 10 / Math.max(size, 1);
-      this.camera.updateProjectionMatrix();
+      return;
     }
+    this.orbit.target.copy(result.center);
+    this.orbit.minDistance = result.radius * 0.001;
+    this.orbit.maxDistance = this.camera.far / 2;
+    // Discard pending orbit damping so it cannot move the camera away from the fitted view.
+    this.orbit.enableDamping = false;
     this.orbit.update();
+    fitCamera(
+      this.camera,
+      visibleBounds(objects),
+      this.camera.position.clone().sub(this.orbit.target),
+    );
+    this.orbit.enableDamping = true;
+    this.orbit.update();
+  }
+  matchSceneScale() {
+    if (this.selected.length !== 1)
+      return this.notify(
+        "Selecione somente o objeto cujo tamanho deseja ajustar.",
+      );
+    const object = this.selected[0];
+    if (object.userData.locked)
+      return this.notify("Desbloqueie o objeto antes de ajustar seu tamanho.");
+    const own = visibleBounds([object]);
+    const referenceSizes = this.root.children
+      .filter((o) => o !== object)
+      .map((o) => visibleBounds([o]).getSize(new T.Vector3()).length())
+      .filter((n) => n > 0);
+    if (own.isEmpty() || !referenceSizes.length)
+      return this.notify(
+        "É necessário outro objeto visível como referência de tamanho.",
+      );
+    const ownSize = own.getSize(new T.Vector3()).length();
+    if (!(ownSize > 0))
+      return this.notify(
+        "O objeto não possui dimensões válidas para ajustar a escala.",
+      );
+    const factor = Math.max(...referenceSizes) / ownSize;
+    this.checkpoint();
+    object.scale.multiplyScalar(factor);
+    object.updateWorldMatrix(true, true);
+    this.refreshOverlay();
+    this.frameScene();
+    this.changed();
+    this.notify(
+      `Tamanho ajustado em ${factor.toPrecision(4)} vezes. A posição foi preservada. Use Desfazer para voltar.`,
+    );
   }
   view(name: string) {
     const directions: Record<string, number[]> = {
@@ -895,6 +948,7 @@ export class Editor {
     this.orbit.object = this.camera;
     this.gizmo.camera = this.camera;
     this.size();
+    this.frameScene();
     this.changed();
   }
   wire(value: boolean) {
@@ -1077,9 +1131,16 @@ export class Editor {
       }
       if (objects.length) {
         this.checkpoint();
+        const sizes = [...this.root.children, ...objects]
+          .map((o) => visibleBounds([o]).getSize(new T.Vector3()).length())
+          .filter((n) => n > 0);
         this.root.add(...objects);
+        if (sizes.length > 1 && Math.max(...sizes) / Math.min(...sizes) > 100)
+          this.notify(
+            "Os modelos têm tamanhos muito diferentes. Selecione a peça e use Ajustar tamanho à cena, ou ajuste sua escala manualmente. Nenhuma escala foi alterada automaticamente.",
+          );
         this.select(objects);
-        this.frameSelection();
+        this.frameScene();
         this.notify(
           `${objects.length} arquivo(s) importado(s). Escala aplicada: ${scale}; eixo vertical: ${up.toUpperCase()}.`,
         );
@@ -1088,9 +1149,16 @@ export class Editor {
       this.notify(`Importação interrompida: ${(err as Error).message}`);
       if (objects.length) {
         this.checkpoint();
+        const sizes = [...this.root.children, ...objects]
+          .map((o) => visibleBounds([o]).getSize(new T.Vector3()).length())
+          .filter((n) => n > 0);
         this.root.add(...objects);
+        if (sizes.length > 1 && Math.max(...sizes) / Math.min(...sizes) > 100)
+          this.notify(
+            "Os modelos têm tamanhos muito diferentes. Selecione a peça e use Ajustar tamanho à cena, ou ajuste sua escala manualmente. Nenhuma escala foi alterada automaticamente.",
+          );
         this.select(objects);
-        this.frameSelection();
+        this.frameScene();
       }
     } finally {
       setTimeout(() => urls.forEach((url) => URL.revokeObjectURL(url)), 10000);
@@ -1102,7 +1170,7 @@ export class Editor {
       JSON.stringify({
         format: "godoy-3d",
         version: 1,
-        scene: this.root.toJSON(),
+        scene: JSON.parse(this.snapshot()),
       }),
       "projeto.godoy",
       "application/json",
